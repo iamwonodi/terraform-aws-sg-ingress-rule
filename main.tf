@@ -1,6 +1,19 @@
-###################################################################################
-# VPC SG INGRESS RULE RESOURCE
-###################################################################################
+# -----------------------------------------------------------------------------
+# VPC Security Group Ingress Rule
+# -----------------------------------------------------------------------------
+# Creates a single ingress rule on an existing AWS security group.
+#
+# Supported traffic sources:
+#   - IPv4 CIDR blocks
+#   - IPv6 CIDR blocks
+#   - AWS-managed or customer-managed prefix lists
+#   - Security group references
+#
+# Exactly one traffic source must be provided.
+#
+# The module deliberately contains no knowledge of application types,
+# subnet tiers, load balancers, databases, or other infrastructure concerns.
+# -----------------------------------------------------------------------------
 
 resource "aws_vpc_security_group_ingress_rule" "this" {
   security_group_id = var.security_group_id
@@ -10,10 +23,59 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
   from_port   = var.from_port
   to_port     = var.to_port
 
-  # 🔑 CONDITIONAL SECURITY RULES:
-  # If a source security group is passed, use it.
-  # Otherwise, use the raw IPv4 CIDR input.
-  referenced_security_group_id = var.referenced_security_group_id
-  cidr_ipv4                    = var.referenced_security_group_id == null ? var.cidr_ipv4 : null
-}
+  # ---------------------------------------------------------------------------
+  # Traffic Source
+  # ---------------------------------------------------------------------------
+  # Exactly one source type must be configured.
+  # The validation below prevents ambiguous or source-less rules.
+  # ---------------------------------------------------------------------------
 
+  cidr_ipv4                    = var.cidr_ipv4
+  cidr_ipv6                    = var.cidr_ipv6
+  prefix_list_id               = var.prefix_list_id
+  referenced_security_group_id = var.referenced_security_group_id
+
+  # ---------------------------------------------------------------------------
+  # Resource Tags
+  # ---------------------------------------------------------------------------
+  # Tags are optional and allow callers to apply their own resource metadata.
+  # ---------------------------------------------------------------------------
+
+  tags = var.tags
+
+  # ---------------------------------------------------------------------------
+  # Configuration Validation
+  # ---------------------------------------------------------------------------
+  # AWS requires exactly one traffic source.
+  # AWS also requires ports for TCP/UDP and prohibits them for -1.
+  # ---------------------------------------------------------------------------
+
+  lifecycle {
+    precondition {
+      condition = length([
+        for source in [
+          var.cidr_ipv4,
+          var.cidr_ipv6,
+          var.prefix_list_id,
+          var.referenced_security_group_id
+        ] : source if source != null && trimspace(source) != ""
+      ]) == 1
+
+      error_message = "Exactly one of cidr_ipv4, cidr_ipv6, prefix_list_id, or referenced_security_group_id must be provided."
+    }
+
+    precondition {
+      condition = (
+        var.ip_protocol == "-1"
+        && var.from_port == null
+        && var.to_port == null
+        ) || (
+        var.ip_protocol != "-1"
+        && var.from_port != null
+        && var.to_port != null
+      )
+
+      error_message = "For ip_protocol '-1', from_port and to_port must be null. For all other protocols, both from_port and to_port must be provided."
+    }
+  }
+}
