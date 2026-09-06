@@ -11,8 +11,16 @@
 #
 # Exactly one traffic source must be provided.
 #
-# The module deliberately contains no knowledge of application types,
-# subnet tiers, load balancers, databases, or other infrastructure concerns.
+# The module is intentionally generic and contains no knowledge of:
+#   - Subnet tiers
+#   - Application types
+#   - Load balancers
+#   - Databases
+#   - CloudFront
+#   - ECS
+#   - EKS
+#
+# Those decisions belong to the consuming infrastructure.
 # -----------------------------------------------------------------------------
 
 resource "aws_vpc_security_group_ingress_rule" "this" {
@@ -34,6 +42,16 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
   cidr_ipv6                    = var.cidr_ipv6
   prefix_list_id               = var.prefix_list_id
   referenced_security_group_id = var.referenced_security_group_id
+
+  # ---------------------------------------------------------------------------
+  # Region
+  # ---------------------------------------------------------------------------
+  # Optional resource-level AWS Region override.
+  #
+  # When null, the AWS provider's configured Region is used.
+  # ---------------------------------------------------------------------------
+
+  region = var.region
 
   # ---------------------------------------------------------------------------
   # Resource Tags
@@ -67,15 +85,13 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
     precondition {
       condition = (
         var.ip_protocol == "-1"
-        && var.from_port == null
-        && var.to_port == null
-        ) || (
-        var.ip_protocol != "-1"
-        && var.from_port != null
-        && var.to_port != null
+        ? var.from_port == null && var.to_port == null
+        : var.ip_protocol == "icmpv6"
+        ? true
+        : var.from_port != null && var.to_port != null
       )
 
-      error_message = "For ip_protocol '-1', from_port and to_port must be null. For all other protocols, both from_port and to_port must be provided."
+      error_message = "For ip_protocol '-1', from_port and to_port must be null. For ip_protocol 'icmpv6', ports are optional. For all other protocols, both from_port and to_port must be provided."
     }
   }
 }

@@ -18,7 +18,7 @@ The security group itself is created separately. Egress rules are managed indepe
 
 ---
 
-## Architecture
+# Architecture
 
 ```text
                     ┌──────────────────────┐
@@ -29,7 +29,7 @@ The security group itself is created separately. Egress rules are managed indepe
               │                │                │
               v                v                v
        IPv4 / IPv6        Prefix List      Security Group
-           CIDR                               Reference
+           CIDR              Source            Reference
               │                │                │
               └────────────────┼────────────────┘
                                │
@@ -41,7 +41,7 @@ The security group itself is created separately. Egress rules are managed indepe
                              v
                 ┌──────────────────────────┐
                 │   Existing Security      │
-                │        Group             │
+                │          Group           │
                 └──────────────────────────┘
 ```
 
@@ -54,10 +54,11 @@ The consuming infrastructure is responsible for deciding:
 * Which protocol is allowed
 * Which ports or ICMP type/code are allowed
 * Why the rule exists
+* Which AWS Region manages the rule
 
 ---
 
-## Features
+# Features
 
 * Creates a single ingress rule on an existing security group
 * Supports IPv4 CIDR sources
@@ -65,6 +66,8 @@ The consuming infrastructure is responsible for deciding:
 * Supports AWS-managed prefix lists
 * Supports customer-managed prefix lists
 * Supports security-group references
+* Supports configurable AWS Region
+* Supports resource tags
 * Supports TCP
 * Supports UDP
 * Supports ICMP
@@ -72,7 +75,6 @@ The consuming infrastructure is responsible for deciding:
 * Supports all-protocol rules using `-1`
 * Supports configurable ports
 * Supports ICMP type/code through `from_port` and `to_port`
-* Supports resource tags
 * Validates the traffic source
 * Prevents multiple traffic sources from being configured simultaneously
 * Does not default ingress traffic to the internet
@@ -89,8 +91,11 @@ Supported source types are:
 
 ```text
 cidr_ipv4
+
 cidr_ipv6
+
 prefix_list_id
+
 referenced_security_group_id
 ```
 
@@ -102,7 +107,7 @@ Use `cidr_ipv4` when traffic should be allowed from an IPv4 CIDR block.
 
 ```hcl
 module "https_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.1.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -124,7 +129,7 @@ Use `cidr_ipv6` when traffic should be allowed from an IPv6 CIDR block.
 
 ```hcl
 module "https_ipv6_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.1.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -154,7 +159,7 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 }
 
 module "cloudfront_https_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.1.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
 
   security_group_id = module.internal_alb_sg.security_group_id
 
@@ -178,7 +183,7 @@ Use `referenced_security_group_id` when another security group should be allowed
 
 ```hcl
 module "backend_from_api" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.1.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
 
   security_group_id = module.backend_sg.security_group_id
 
@@ -196,13 +201,71 @@ This is generally preferable to hard-coding the CIDR of another workload when th
 
 ---
 
+# AWS Region
+
+The module supports an optional `region` argument.
+
+When `region` is omitted, the rule uses the Region configured by the AWS provider.
+
+Specify `region` when the ingress rule must be managed in a different AWS Region from the default provider configuration.
+
+```hcl
+module "regional_ingress" {
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+
+  region = "eu-west-1"
+
+  security_group_id = module.application_sg.security_group_id
+
+  description = "Allow HTTPS traffic to the application."
+
+  ip_protocol = "tcp"
+  from_port   = 443
+  to_port     = 443
+
+  cidr_ipv4 = "10.0.0.0/8"
+}
+```
+
+The module does not create or configure an AWS provider. The consuming configuration remains responsible for provider configuration and credentials.
+
+---
+
+# Resource Tags
+
+Tags can be applied directly to the security group ingress rule.
+
+```hcl
+module "https_ingress" {
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+
+  security_group_id = module.application_sg.security_group_id
+
+  description = "Allow HTTPS traffic from the application network."
+
+  ip_protocol = "tcp"
+  from_port   = 443
+  to_port     = 443
+
+  cidr_ipv4 = "10.0.0.0/8"
+
+  tags = {
+    Environment = "production"
+    ManagedBy   = "Terraform"
+    Component   = "Security"
+  }
+}
+```
+
+---
+
 # Internet-Facing Ingress
 
 Internet-wide access must be explicitly requested.
 
 ```hcl
 module "public_https" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.1.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
 
   security_group_id = module.alb_sg.security_group_id
 
@@ -226,7 +289,7 @@ Use `-1` for an all-protocol rule.
 
 ```hcl
 module "all_protocol_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.1.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -255,7 +318,7 @@ For ICMP rules, `from_port` and `to_port` represent ICMP type and code rather th
 
 ```hcl
 module "icmp_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.1.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -304,8 +367,8 @@ referenced_security_group_id = module.api_sg.security_group_id
 Invalid:
 
 ```hcl
-cidr_ipv4                    = "10.0.0.0/8"
-prefix_list_id               = "pl-0123456789abcdef0"
+cidr_ipv4     = "10.0.0.0/8"
+prefix_list_id = "pl-0123456789abcdef0"
 ```
 
 Invalid:
@@ -374,9 +437,12 @@ The consuming infrastructure decides what that relationship means.
 | `cidr_ipv6`                    | IPv6 CIDR source                               | `string`      | `null`  | no       |
 | `prefix_list_id`               | Prefix list source                             | `string`      | `null`  | no       |
 | `referenced_security_group_id` | Source security group ID                       | `string`      | `null`  | no       |
+| `region`                       | AWS Region where the rule is managed           | `string`      | `null`  | no       |
 | `tags`                         | Tags applied to the ingress rule               | `map(string)` | `{}`    | no       |
 
-### Supported protocols
+### Supported Protocols
+
+The module supports AWS security-group protocol values, including:
 
 ```text
 -1
@@ -386,14 +452,19 @@ icmp
 icmpv6
 ```
 
-### Source requirement
+The underlying AWS provider also supports protocol identifiers accepted by the AWS security-group rule resource.
+
+### Source Requirement
 
 Exactly one of the following must be provided:
 
 ```text
 cidr_ipv4
+
 cidr_ipv6
+
 prefix_list_id
+
 referenced_security_group_id
 ```
 
@@ -452,19 +523,22 @@ This module follows Semantic Versioning.
 Current release:
 
 ```text
-v1.1.0
+v1.2.0
 ```
 
-The `v1.1.0` release adds:
+The `v1.2.0` release adds:
 
+* Configurable AWS Region
+* Resource tags
+* IPv4 CIDR support
 * IPv6 CIDR support
 * Prefix-list support
-* Resource tags
+* Security-group source support
 * ARN output
 * Explicit source validation
 * Improved protocol and port validation
 
-The existing IPv4 CIDR and security-group source interfaces remain supported.
+Existing IPv4 CIDR and security-group source interfaces remain supported.
 
 ---
 

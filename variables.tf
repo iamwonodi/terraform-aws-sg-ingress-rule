@@ -154,6 +154,25 @@ variable "referenced_security_group_id" {
 }
 
 # -----------------------------------------------------------------------------
+# AWS Region
+# -----------------------------------------------------------------------------
+
+variable "region" {
+  type        = string
+  default     = null
+  description = "Optional AWS Region override for the security group ingress rule."
+
+  validation {
+    condition = (
+      var.region == null ||
+      trimspace(var.region) != ""
+    )
+
+    error_message = "region must not be empty when provided."
+  }
+}
+
+# -----------------------------------------------------------------------------
 # Tags
 # -----------------------------------------------------------------------------
 

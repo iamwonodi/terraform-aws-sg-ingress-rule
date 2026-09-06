@@ -27,6 +27,8 @@ resource "aws_security_group" "example" {
 module "ipv4_ingress" {
   source = "../../"
 
+  region = null
+
   security_group_id = aws_security_group.example.id
   description       = "Allow HTTPS from the example IPv4 network."
 
@@ -47,6 +49,8 @@ module "ipv4_ingress" {
 
 module "ipv6_ingress" {
   source = "../../"
+
+  region = null
 
   security_group_id = aws_security_group.example.id
   description       = "Allow HTTPS from the example IPv6 network."
@@ -69,6 +73,8 @@ module "ipv6_ingress" {
 module "prefix_list_ingress" {
   source = "../../"
 
+  region = null
+
   security_group_id = aws_security_group.example.id
   description       = "Allow HTTPS from the configured prefix list."
 
@@ -90,6 +96,8 @@ module "prefix_list_ingress" {
 module "security_group_ingress" {
   source = "../../"
 
+  region = null
+
   security_group_id = aws_security_group.example.id
   description       = "Allow HTTPS from the configured source security group."
 
@@ -110,6 +118,8 @@ module "security_group_ingress" {
 
 module "all_protocol_ingress" {
   source = "../../"
+
+  region = null
 
   security_group_id = aws_security_group.example.id
   description       = "Allow all protocols from the example IPv4 network."
