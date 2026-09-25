@@ -27,7 +27,7 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
   security_group_id = var.security_group_id
   description       = var.description
 
-  ip_protocol = var.ip_protocol
+  ip_protocol = local.ip_protocol
   from_port   = var.from_port
   to_port     = var.to_port
 
@@ -84,9 +84,9 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
 
     precondition {
       condition = (
-        var.ip_protocol == "-1"
+        local.ip_protocol == "-1"
         ? var.from_port == null && var.to_port == null
-        : var.ip_protocol == "icmpv6"
+        : local.ip_protocol == "icmpv6"
         ? true
         : var.from_port != null && var.to_port != null
       )

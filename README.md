@@ -107,7 +107,7 @@ Use `cidr_ipv4` when traffic should be allowed from an IPv4 CIDR block.
 
 ```hcl
 module "https_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -129,7 +129,7 @@ Use `cidr_ipv6` when traffic should be allowed from an IPv6 CIDR block.
 
 ```hcl
 module "https_ipv6_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -159,7 +159,7 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 }
 
 module "cloudfront_https_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   security_group_id = module.internal_alb_sg.security_group_id
 
@@ -183,7 +183,7 @@ Use `referenced_security_group_id` when another security group should be allowed
 
 ```hcl
 module "backend_from_api" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   security_group_id = module.backend_sg.security_group_id
 
@@ -211,7 +211,7 @@ Specify `region` when the ingress rule must be managed in a different AWS Region
 
 ```hcl
 module "regional_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   region = "eu-west-1"
 
@@ -237,7 +237,7 @@ Tags can be applied directly to the security group ingress rule.
 
 ```hcl
 module "https_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -265,7 +265,7 @@ Internet-wide access must be explicitly requested.
 
 ```hcl
 module "public_https" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   security_group_id = module.alb_sg.security_group_id
 
@@ -289,7 +289,7 @@ Use `-1` for an all-protocol rule.
 
 ```hcl
 module "all_protocol_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -318,7 +318,7 @@ For ICMP rules, `from_port` and `to_port` represent ICMP type and code rather th
 
 ```hcl
 module "icmp_ingress" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-sg-ingress-rule.git?ref=v1.2.1"
 
   security_group_id = module.application_sg.security_group_id
 
@@ -388,6 +388,15 @@ referenced_security_group_id = null
 ```
 
 The module fails during planning rather than silently selecting one of the supplied sources.
+
+Each CIDR input also checks its address family:
+
+```hcl
+cidr_ipv4 = "2001:db8::/32" # invalid: IPv6 block in the IPv4 input
+cidr_ipv6 = "10.0.0.0/8"    # invalid: IPv4 block in the IPv6 input
+```
+
+`ip_protocol` is case-insensitive and surrounding whitespace is ignored; the module passes the lowercase, trimmed value to AWS.
 
 ---
 
@@ -472,10 +481,11 @@ referenced_security_group_id
 
 # Outputs
 
-| Name  | Description                                    |
-| ----- | ---------------------------------------------- |
-| `id`  | ID of the created security group ingress rule  |
-| `arn` | ARN of the created security group ingress rule |
+| Name                | Description                                              |
+| ------------------- | -------------------------------------------------------- |
+| `id`                | ID of the created security group ingress rule            |
+| `arn`               | ARN of the created security group ingress rule           |
+| `security_group_id` | ID of the security group receiving the ingress rule      |
 
 Example:
 
@@ -501,11 +511,14 @@ output "ingress_rule_id" {
 ```text
 terraform-aws-sg-ingress-rule/
 │
+├── .gitignore
+├── .terraform.lock.hcl
+├── README.md
+├── versions.tf
 ├── main.tf
 ├── variables.tf
+├── locals.tf
 ├── outputs.tf
-├── versions.tf
-├── README.md
 │
 └── examples/
     └── complete/
@@ -523,8 +536,17 @@ This module follows Semantic Versioning.
 Current release:
 
 ```text
-v1.2.0
+v1.2.1
 ```
+
+The `v1.2.1` release fixes:
+
+* `cidr_ipv4` and `cidr_ipv6` now reject a block of the other address family at plan time
+* `ip_protocol` is normalised (lowercase, trimmed) before reaching the resource and the port precondition
+* The README Outputs table now lists `security_group_id`
+* The empty `data.tf` file was removed
+
+No inputs, outputs or defaults changed.
 
 The `v1.2.0` release adds:
 

@@ -75,6 +75,10 @@ variable "to_port" {
 # IPv4 Source
 # -----------------------------------------------------------------------------
 
+# cidrhost() accepts both address families, so the ":" check keeps an IPv6
+# block out of cidr_ipv4 (and the reverse below) at plan time rather than
+# leaving AWS to reject it at apply time.
+
 variable "cidr_ipv4" {
   type        = string
   default     = null
@@ -85,6 +89,7 @@ variable "cidr_ipv4" {
       var.cidr_ipv4 == null ||
       (
         trimspace(var.cidr_ipv4) != "" &&
+        !strcontains(var.cidr_ipv4, ":") &&
         can(cidrhost(var.cidr_ipv4, 0))
       )
     )
@@ -107,6 +112,7 @@ variable "cidr_ipv6" {
       var.cidr_ipv6 == null ||
       (
         trimspace(var.cidr_ipv6) != "" &&
+        strcontains(var.cidr_ipv6, ":") &&
         can(cidrhost(var.cidr_ipv6, 0))
       )
     )
